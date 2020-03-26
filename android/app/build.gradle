@@ -1,8 +1,13 @@
+def taskRequests = getGradle().getStartParameter().getTaskRequests().toString()
+def isPlay = !(taskRequests.contains("Foss") || taskRequests.contains("foss"))
+
 apply plugin: "com.android.application"
 apply plugin: 'kotlin-android'
-apply plugin: "io.fabric"
-apply plugin: "com.google.firebase.firebase-perf"
 apply plugin: 'com.bugsnag.android.gradle'
+if (isPlay) {
+    apply plugin: 'io.fabric'
+    apply plugin: "com.google.firebase.firebase-perf"
+}
 
 import com.android.build.OutputFile
 
@@ -80,10 +85,10 @@ import com.android.build.OutputFile
  */
 
 project.ext.react = [
-    entryFile: "index.js",
-    bundleAssetName: "app.bundle",
-    iconFontNames: [ 'custom.ttf' ],
-    enableHermes: true,  // clean and rebuild if changing
+        entryFile      : "index.js",
+        bundleAssetName: "app.bundle",
+        iconFontNames  : ['custom.ttf'],
+        enableHermes   : true,  // clean and rebuild if changing
 ]
 
 apply from: "../../node_modules/react-native/react.gradle"
@@ -138,7 +143,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode VERSIONCODE as Integer
-        versionName "4.6.0"
+        versionName "4.5.1"
         vectorDrawables.useSupportLibrary = true
         manifestPlaceholders = [BugsnagAPIKey: BugsnagAPIKey as String]
     }
@@ -161,11 +166,27 @@ android {
             include "armeabi-v7a", "x86", "arm64-v8a", "x86_64"
         }
     }
+
+    flavorDimensions 'type'
+    productFlavors {
+        foss {
+            dimension = 'type'
+            buildConfigField 'boolean', 'PLAY_BUILD', "false"
+        }
+        play {
+            dimension = 'type'
+            buildConfigField 'boolean', 'PLAY_BUILD', "true"
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled enableProguardInReleaseBuilds
             setProguardFiles([getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'])
             signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.debug
         }
     }
     // applicationVariants are e.g. debug, release
@@ -203,19 +224,19 @@ dependencies {
     implementation project(':@react-native-community_viewpager')
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation "com.facebook.react:react-native:+"  // From node_modules
-    implementation "com.google.firebase:firebase-messaging:18.0.0"
-    implementation "com.google.firebase:firebase-core:16.0.9"
-    implementation "com.google.firebase:firebase-perf:17.0.2"
-    implementation('com.crashlytics.sdk.android:crashlytics:2.9.9@aar') {
+    playImplementation  "com.google.firebase:firebase-messaging:18.0.0"
+    playImplementation  "com.google.firebase:firebase-core:16.0.9"
+    playImplementation  "com.google.firebase:firebase-perf:17.0.2"
+    playImplementation ('com.crashlytics.sdk.android:crashlytics:2.9.9@aar') {
         transitive = true
     }
 
     if (enableHermes) {
-      def hermesPath = "../../node_modules/hermes-engine/android/";
-      debugImplementation files(hermesPath + "hermes-debug.aar")
-      releaseImplementation files(hermesPath + "hermes-release.aar")
+        def hermesPath = "../../node_modules/hermes-engine/android/";
+        debugImplementation files(hermesPath + "hermes-debug.aar")
+        releaseImplementation files(hermesPath + "hermes-release.aar")
     } else {
-      implementation jscFlavor
+        implementation jscFlavor
     }
 
     implementation "com.google.code.gson:gson:2.8.5"
@@ -230,5 +251,7 @@ task copyDownloadableDepsToLibs(type: Copy) {
     into 'libs'
 }
 
-apply plugin: 'com.google.gms.google-services'
+if (isPlay) {
+    apply plugin: 'com.google.gms.google-services'
+}
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
