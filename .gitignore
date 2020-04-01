@@ -29,6 +29,10 @@ build/
 .gradle
 local.properties
 *.iml
+# Generated files
+bin/
+gen/
+out/
 
 # node.js
 #
