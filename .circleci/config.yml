@@ -158,7 +158,7 @@ jobs:
           paths:
             - node_modules
 
-  android-build:
+  android-play-build:
     <<: *defaults
     docker:
       - image: circleci/android:api-28-node
@@ -242,9 +242,129 @@ jobs:
           command: |
             if [[ $KEYSTORE ]]; then
               # TODO: enable app bundle again
-              bundle exec fastlane android release
+              bundle exec fastlane android playRelease
             else
-              bundle exec fastlane android build
+              bundle exec fastlane android playBuild
+            fi
+
+            mkdir -p /tmp/build
+
+            mv app/build/outputs /tmp/build/
+          working_directory: android
+
+      - run:
+          name: Upload sourcemaps to Bugsnag
+          command: |
+            if [[ $BUGSNAG_KEY ]]; then
+              yarn generate-source-maps-android upload \
+                --api-key=$BUGSNAG_KEY \
+                --app-version=$CIRCLE_BUILD_NUM \
+                --minifiedFile=android/app/build/generated/assets/react/release/app.bundle \
+                --source-map=android/app/build/generated/sourcemaps/react/release/app.bundle.map \
+                --minified-url=app.bundle \
+                --upload-sources
+            fi
+
+      - store_artifacts:
+          path: /tmp/build/outputs
+
+      - save_cache:
+          name: Save NPM cache
+          key: node-modules-{{ checksum "yarn.lock" }}
+          paths:
+            - ./node_modules
+
+      - save_cache:
+          name: Save gradle cache
+          key: android-{{ checksum "android/build.gradle" }}-{{ checksum  "android/app/build.gradle" }}
+          paths:
+            - ~/.gradle
+      - persist_to_workspace:
+          root: .
+          paths:
+            - android/fastlane/report.xml
+
+  android-foss-build:
+    <<: *defaults
+    docker:
+      - image: circleci/android:api-28-node
+
+    environment:
+      # GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4096m -XX:+HeapDumpOnOutOfMemoryError"
+      # GRADLE_OPTS: -Xmx2048m -Dorg.gradle.daemon=false
+      # JVM_OPTS: -Xmx4096m
+      JAVA_OPTS: '-Xms512m -Xmx2g'
+      GRADLE_OPTS: '-Xmx3g -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"'
+      TERM: dumb
+      BASH_ENV: "~/.nvm/nvm.sh"
+
+    steps:
+      - checkout
+
+      - run:
+          name: Install Node 8
+          command: |
+            curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.6/install.sh | bash
+            source ~/.nvm/nvm.sh
+            # https://github.com/creationix/nvm/issues/1394
+            set +e
+            nvm install 8
+            echo 'export PATH="/home/circleci/.nvm/versions/node/v8.16.0/bin:$PATH"' >> ~/.bash_profile
+            source ~/.bash_profile
+
+      - restore_cache:
+          name: Restore NPM cache
+          key: node-modules-{{ checksum "yarn.lock" }}
+
+      - run:
+          name: Install NPM modules
+          command: |
+            yarn
+
+      - run:
+          name: Update Fastlane
+          command: |
+            echo "ruby-2.6.4" > ~/.ruby-version
+            bundle install
+          working_directory: android
+
+      - restore_cache:
+          name: Restore gradle cache
+          key: android-{{ checksum "android/build.gradle" }}-{{ checksum  "android/app/build.gradle" }}
+
+      - run:
+          name: Configure Gradle
+          command: |
+            echo -e "" > ./gradle.properties
+            # echo -e "android.enableAapt2=false" >> ./gradle.properties
+            echo -e "android.useAndroidX=true" >> ./gradle.properties
+            echo -e "android.enableJetifier=true" >> ./gradle.properties
+
+            if [[ $KEYSTORE ]]; then
+              echo $KEYSTORE_BASE64 | base64 --decode > ./app/$KEYSTORE
+              echo -e "KEYSTORE=$KEYSTORE" >> ./gradle.properties
+              echo -e "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> ./gradle.properties
+              echo -e "KEY_ALIAS=$KEY_ALIAS" >> ./gradle.properties
+              echo -e "KEY_PASSWORD=$KEYSTORE_PASSWORD" >> ./gradle.properties
+            fi
+
+            echo -e "VERSIONCODE=$CIRCLE_BUILD_NUM" >> ./gradle.properties
+            echo -e "BugsnagAPIKey=$BUGSNAG_KEY" >> ./gradle.properties
+          working_directory: android
+
+      - run:
+          name: Config variables
+          command: |
+            echo -e "export default { BUGSNAG_API_KEY: '$BUGSNAG_KEY' };" > ./config.js
+
+      - run:
+          name: Build Android App
+          command: |
+            if [[ $KEYSTORE ]]; then
+              # TODO: enable app bundle again
+              bundle exec fastlane android fossRelease
+            else
+              bundle exec fastlane android fossBuild
             fi
 
             mkdir -p /tmp/build
@@ -475,13 +595,16 @@ workflows:
           requires:
             - ios-hold-testflight
 
-      - android-build:
+      - android-foss-build:
+          requires:
+            - lint-testunit
+      - android-play-build:
           requires:
             - lint-testunit
       - android-hold-google-play-beta:
           type: approval
           requires:
-            - android-build
+            - android-play-build
       - upload-google-play-beta:
           requires:
             - android-hold-google-play-beta

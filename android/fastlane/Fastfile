@@ -16,14 +16,24 @@
 default_platform(:android)
 
 platform :android do
-  desc "Build App for development"
-  lane :build do
-    gradle(task: "assembleDebug")
+  desc "Build Play App for development"
+  lane :playBuild do
+    gradle(task: "assemblePlayDebug")
   end
 
-  desc "Build App for release"
-  lane :release do
-    gradle(task: "assembleRelease")
+  desc "Build Play App for release"
+  lane :playRelease do
+    gradle(task: "assemblePlayRelease")
+  end
+
+  desc "Build Foss App for development"
+  lane :fossBuild do
+    gradle(task: "assembleFossDebug")
+  end
+
+  desc "Build Foss App for release"
+  lane :fossRelease do
+    gradle(task: "assembleFossRelease")
   end
 
   desc "Upload App to Play store"
