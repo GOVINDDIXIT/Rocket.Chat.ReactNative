@@ -171,10 +171,12 @@ android {
     productFlavors {
         foss {
             dimension = 'type'
+           // applicationId 'chat.rocket.reactnative.foss'
             buildConfigField 'boolean', 'PLAY_BUILD', "false"
         }
         play {
             dimension = 'type'
+            //applicationId 'chat.rocket.reactnative.play'
             buildConfigField 'boolean', 'PLAY_BUILD', "true"
         }
     }
