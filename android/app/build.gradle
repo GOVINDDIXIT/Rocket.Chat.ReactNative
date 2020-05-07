@@ -229,10 +229,10 @@ dependencies {
     implementation project(':@react-native-community_viewpager')
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation "com.facebook.react:react-native:+"  // From node_modules
-    implementation "com.google.firebase:firebase-messaging:18.0.0"
-    implementation "com.google.firebase:firebase-core:16.0.9"
-    implementation "com.google.firebase:firebase-perf:17.0.2"
-    implementation('com.crashlytics.sdk.android:crashlytics:2.9.9@aar') {
+    playImplementation "com.google.firebase:firebase-messaging:18.0.0"
+    playImplementation "com.google.firebase:firebase-core:16.0.9"
+    playImplementation "com.google.firebase:firebase-perf:17.0.2"
+    playImplementation('com.crashlytics.sdk.android:crashlytics:2.9.9@aar') {
         transitive = true
     }
 
